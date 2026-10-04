@@ -306,6 +306,10 @@ class ContentClassifierService final : public nsIAsyncShutdownBlocker,
       const nsTArray<const ContentClassifierFeature*>& aFeatures,
       EnginesPrefsSnapshot aPreferenceSnapshot);
 
+  void LoadCachedEngines();
+  static void WriteEngineCache(const ContentClassifierFeature& aFeature,
+                               ContentClassifierEngine& aEngine);
+
   // Put the given engine into the authoritative map. Doesn't update references
   // to this feature's engine elsewhere. See
   // PopulateAllActiveEnginesFromPreferenceSnapshot.
