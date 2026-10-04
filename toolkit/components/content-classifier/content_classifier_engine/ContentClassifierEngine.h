@@ -95,6 +95,23 @@ class ContentClassifierEngine final {
     return content_classifier_engine_from_rules(&aRules, &mEngine);
   }
 
+  nsresult Serialize(nsTArray<uint8_t>& aData) const {
+    ThinVec<uint8_t> serialized;
+    nsresult rv =
+        content_classifier_engine_serialize(mEngine, &serialized);
+    if (NS_FAILED(rv)) {
+      return rv;
+    }
+    aData.Clear();
+    aData.AppendElements(serialized.Elements(), serialized.Length());
+    return NS_OK;
+  }
+
+  nsresult Deserialize(const nsTArray<uint8_t>& aData) {
+    return content_classifier_engine_deserialize(
+        mEngine, aData.Elements(), aData.Length());
+  }
+
   const ContentClassifierFeature& Feature() const { return mFeature; }
 
   ContentClassifierEngineResult CheckNetworkRequest(

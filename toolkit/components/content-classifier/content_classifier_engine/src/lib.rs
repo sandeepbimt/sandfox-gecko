@@ -77,6 +77,43 @@ pub unsafe extern "C" fn content_classifier_engine_destroy(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn content_classifier_engine_serialize(
+    engine: *const ContentClassifierFFIEngine,
+    out_data: *mut ThinVec<u8>,
+) -> nsresult {
+    if engine.is_null() || out_data.is_null() {
+        return NS_ERROR_INVALID_ARG;
+    }
+
+    let serialized = (*engine).engine.serialize();
+    (*out_data) = ThinVec::from(serialized);
+    NS_OK
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn content_classifier_engine_deserialize(
+    engine: *mut ContentClassifierFFIEngine,
+    data: *const u8,
+    data_len: usize,
+) -> nsresult {
+    if engine.is_null() || (data.is_null() && data_len != 0) {
+        return NS_ERROR_INVALID_ARG;
+    }
+
+    let serialized = if data_len == 0 {
+        &[]
+    } else {
+        std::slice::from_raw_parts(data, data_len)
+    };
+
+    match (*engine).engine.deserialize(serialized) {
+        Ok(()) => NS_OK,
+        Err(_) => NS_ERROR_INVALID_ARG,
+    }
+}
+
+
+#[no_mangle]
 pub unsafe extern "C" fn content_classifier_engine_check_network_request_preparsed(
     engine: *const ContentClassifierFFIEngine,
     url: &nsACString,
