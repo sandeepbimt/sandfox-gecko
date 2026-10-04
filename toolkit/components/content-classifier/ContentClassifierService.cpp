@@ -59,51 +59,49 @@ struct SandfoxEngineCacheHeader {
   uint32_t mMagic;
   uint32_t mVersion;
   uint32_t mPayloadSize;
+  uint64_t mRulesFingerprint;
 };
-static_assert(sizeof(SandfoxEngineCacheHeader) == 12);
+static_assert(sizeof(SandfoxEngineCacheHeader) == 24);
 
 already_AddRefed<nsIFile> GetSandfoxEngineCacheFile(
-    const ContentClassifierFeature& aFeature) {
-  nsCOMPtr<nsIFile> profileDir;
-  if (NS_FAILED(NS_GetSpecialDirectory(NS_APP_USER_PROFILE_50_DIR,
-                                       getter_AddRefs(profileDir))) ||
-      !profileDir) {
-    return nullptr;
-  }
-
-  nsCOMPtr<nsIFile> cacheDir;
-  if (NS_FAILED(profileDir->Clone(getter_AddRefs(cacheDir))) || !cacheDir ||
-      NS_FAILED(cacheDir->AppendNative("sandfox-adblock-engine"_ns))) {
-    return nullptr;
-  }
-
-  bool exists = false;
-  if (NS_FAILED(cacheDir->Exists(&exists))) {
-    return nullptr;
-  }
-  if (!exists &&
-      NS_FAILED(cacheDir->Create(nsIFile::DIRECTORY_TYPE, 0700))) {
-    return nullptr;
-  }
-
+    nsIFile* aCacheDirectory, const ContentClassifierFeature& aFeature) {
+  if (!aCacheDirectory) return nullptr;
   nsCOMPtr<nsIFile> cacheFile;
-  if (NS_FAILED(cacheDir->Clone(getter_AddRefs(cacheFile))) || !cacheFile) {
-    return nullptr;
-  }
-
+  if (NS_FAILED(aCacheDirectory->Clone(getter_AddRefs(cacheFile))) ||
+      !cacheFile) return nullptr;
   nsAutoCString leaf(aFeature.mName);
   leaf.AppendLiteral(".dat");
-  if (NS_FAILED(cacheFile->AppendNative(leaf))) {
-    return nullptr;
-  }
-
+  if (NS_FAILED(cacheFile->AppendNative(leaf))) return nullptr;
   return cacheFile.forget();
 }
 
-nsresult ReadSandfoxEngineCache(const ContentClassifierFeature& aFeature,
+uint64_t HashEngineRules(const ContentClassifierFeature& aFeature,
+                         const nsTArray<nsCString>& aRules) {
+  constexpr uint64_t kOffset = 14695981039346656037ULL;
+  constexpr uint64_t kPrime = 1099511628211ULL;
+  uint64_t hash = kOffset;
+  auto update = [&hash](const char* d, size_t n) {
+    for (size_t i = 0; i < n; ++i) {
+      hash ^= static_cast<uint8_t>(d[i]);
+      hash *= kPrime;
+    }
+  };
+  update(aFeature.mName.get(), aFeature.mName.Length());
+  for (const auto& rule : aRules) {
+    update(rule.get(), rule.Length());
+    hash ^= 0;
+    hash *= kPrime;
+  }
+  return hash;
+}
+
+nsresult ReadSandfoxEngineCache(nsIFile* aCacheDirectory,
+                                const ContentClassifierFeature& aFeature,
+                                const nsTArray<nsCString>& aRules,
                                 nsTArray<uint8_t>& aData) {
   aData.Clear();
-  nsCOMPtr<nsIFile> cacheFile = GetSandfoxEngineCacheFile(aFeature);
+  nsCOMPtr<nsIFile> cacheFile =
+      GetSandfoxEngineCacheFile(aCacheDirectory, aFeature);
   if (!cacheFile) {
     return NS_ERROR_NOT_AVAILABLE;
   }
@@ -131,7 +129,8 @@ nsresult ReadSandfoxEngineCache(const ContentClassifierFeature& aFeature,
       header.mVersion != kSandfoxEngineCacheVersion ||
       header.mPayloadSize !=
           static_cast<uint32_t>(fileSize - sizeof(header)) ||
-      header.mPayloadSize == 0) {
+      header.mPayloadSize == 0 ||
+      header.mRulesFingerprint != HashEngineRules(aFeature, aRules)) {
     return NS_ERROR_FILE_CORRUPTED;
   }
 
@@ -155,7 +154,9 @@ nsresult ReadSandfoxEngineCache(const ContentClassifierFeature& aFeature,
   return NS_OK;
 }
 
-nsresult WriteSandfoxEngineCache(const ContentClassifierFeature& aFeature,
+nsresult WriteSandfoxEngineCache(nsIFile* aCacheDirectory,
+                                 const ContentClassifierFeature& aFeature,
+                                 const nsTArray<nsCString>& aRules,
                                  ContentClassifierEngine& aEngine) {
   nsTArray<uint8_t> payload;
   nsresult rv = aEngine.Serialize(payload);
@@ -164,7 +165,8 @@ nsresult WriteSandfoxEngineCache(const ContentClassifierFeature& aFeature,
     return NS_ERROR_FILE_TOO_BIG;
   }
 
-  nsCOMPtr<nsIFile> cacheFile = GetSandfoxEngineCacheFile(aFeature);
+  nsCOMPtr<nsIFile> cacheFile =
+      GetSandfoxEngineCacheFile(aCacheDirectory, aFeature);
   if (!cacheFile) {
     return NS_ERROR_NOT_AVAILABLE;
   }
@@ -177,7 +179,8 @@ nsresult WriteSandfoxEngineCache(const ContentClassifierFeature& aFeature,
 
   SandfoxEngineCacheHeader header{kSandfoxEngineCacheMagic,
                                   kSandfoxEngineCacheVersion,
-                                  payload.Length()};
+                                  payload.Length(),
+                                  HashEngineRules(aFeature, aRules)};
   uint32_t written = 0;
 
   rv = output->Write(reinterpret_cast<const char*>(&header), sizeof(header),
@@ -636,6 +639,28 @@ void ContentClassifierService::Init() {
       return;
     }
 
+    nsCOMPtr<nsIFile> profileDir;
+    rv = NS_GetSpecialDirectory(NS_APP_USER_PROFILE_50_DIR,
+                                getter_AddRefs(profileDir));
+    if (NS_SUCCEEDED(rv) && profileDir) {
+      rv = profileDir->Clone(getter_AddRefs(mCacheDirectory));
+      if (NS_SUCCEEDED(rv) && mCacheDirectory) {
+        rv = mCacheDirectory->AppendNative("sandfox-adblock-engine"_ns);
+        if (NS_SUCCEEDED(rv)) {
+          bool exists = false;
+          rv = mCacheDirectory->Exists(&exists);
+          if (NS_SUCCEEDED(rv) && !exists) {
+            rv = mCacheDirectory->Create(nsIFile::DIRECTORY_TYPE, 0700);
+          }
+        }
+      }
+    }
+    if (NS_FAILED(rv)) {
+      mCacheDirectory = nullptr;
+      MOZ_LOG(gContentClassifierLog, LogLevel::Warning,
+              ("ContentClassifierService::Init - engine cache disabled"));
+    }
+
     rv = NS_CreateBackgroundTaskQueue("ContentClassifier",
                                       getter_AddRefs(mBuildThread));
     if (NS_FAILED(rv)) {
@@ -644,11 +669,6 @@ void ContentClassifierService::Init() {
     }
 
     mInitPhase = InitPhase::InitSucceeded;
-  }
-
-  // Load a valid cached engine before the Remote Settings path can rebuild it.
-  if (sEnabled) {
-    LoadCachedEngines();
   }
 
   // Lock released; safe to call into JS.
@@ -1437,49 +1457,11 @@ bool ContentClassifierService::IsBlockingFeatureActive(
   return names.Contains(aFeatureName);
 }
 
-void ContentClassifierService::LoadCachedEngines() {
-  MOZ_ASSERT(NS_IsMainThread());
-
-  EnginesPrefsSnapshot snapshot;
-  nsTHashSet<nsCString> activeNames = ActiveFeatureNames(snapshot);
-
-  for (const auto& feature : GetFeatures()) {
-    if (!activeNames.Contains(nsCString(feature.mName))) {
-      continue;
-    }
-
-    nsTArray<uint8_t> cacheData;
-    nsresult rv = ReadSandfoxEngineCache(feature, cacheData);
-    if (NS_FAILED(rv)) {
-      continue;
-    }
-
-    RefPtr<ContentClassifierEngine> engine =
-        new ContentClassifierEngine(feature);
-    rv = engine->Deserialize(cacheData);
-    if (NS_FAILED(rv)) {
-      MOZ_LOG_FMT(gContentClassifierLog, LogLevel::Debug,
-                  "LoadCachedEngines - invalid cache for feature \"{}\": {:#x}",
-                  feature.mName, static_cast<uint32_t>(rv));
-      continue;
-    }
-
-    MutexAutoLock lock(mLock);
-    if (mInitPhase == InitPhase::InitSucceeded &&
-        activeNames.Contains(nsCString(feature.mName))) {
-      InstallEngine(feature.mName, std::move(engine));
-    }
-  }
-
-  MutexAutoLock lock(mLock);
-  if (mInitPhase == InitPhase::InitSucceeded) {
-    PopulateAllActiveEnginesFromPreferenceSnapshot(snapshot);
-  }
-}
-
 void ContentClassifierService::WriteEngineCache(
-    const ContentClassifierFeature& aFeature, ContentClassifierEngine& aEngine) {
-  nsresult rv = WriteSandfoxEngineCache(aFeature, aEngine);
+    nsIFile* aCacheDirectory, const ContentClassifierFeature& aFeature,
+    const nsTArray<nsCString>& aRules, ContentClassifierEngine& aEngine) {
+  nsresult rv =
+      WriteSandfoxEngineCache(aCacheDirectory, aFeature, aRules, aEngine);
   if (NS_FAILED(rv)) {
     MOZ_LOG_FMT(gContentClassifierLog, LogLevel::Debug,
                 "WriteEngineCache - failed for feature \"{}\": {:#x}",
@@ -1650,23 +1632,35 @@ void ContentClassifierService::UpdateFeatures(
 
             buildThread->Dispatch(NS_NewRunnableFunction(
                 "ContentClassifierService::UpdateFeaturesBuild",
-                [self, features = std::move(features),
+                [self, cacheDirectory = self->mCacheDirectory,
+                 features = std::move(features),
                  featureVersions = std::move(featureVersions),
                  perFeatureRules = std::move(perFeatureRules),
                  perFeatureFetchSucceeded = std::move(perFeatureFetchSucceeded),
                  snapshot = std::move(snapshot), generation]() mutable {
                   MOZ_ASSERT(!NS_IsMainThread());
 
-                  // Build engines outside the lock; InitFromRules can be
-                  // expensive. A null engine — from a fetch reject, build
-                  // failure, or empty rules — clobbers any existing entry
-                  // for that feature via InstallEngine.
+                  // Prefer a validated serialized engine; rebuild only on cache miss.
                   nsTArray<RefPtr<ContentClassifierEngine>> builtEngines;
                   builtEngines.SetLength(features.Length());
+                  nsTArray<bool> cacheWrites;
+                  cacheWrites.SetLength(features.Length(), false);
                   for (size_t i = 0; i < features.Length(); ++i) {
                     if (!perFeatureFetchSucceeded[i] ||
                         perFeatureRules[i].IsEmpty()) {
                       continue;
+                    }
+                    nsTArray<uint8_t> cacheData;
+                    if (NS_SUCCEEDED(ReadSandfoxEngineCache(
+                            cacheDirectory, *features[i], perFeatureRules[i],
+                            cacheData))) {
+                      RefPtr<ContentClassifierEngine> cachedEngine =
+                          new ContentClassifierEngine(*features[i]);
+                      if (NS_SUCCEEDED(
+                              cachedEngine->InitFromSerialized(cacheData))) {
+                        builtEngines[i] = std::move(cachedEngine);
+                        continue;
+                      }
                     }
                     RefPtr<ContentClassifierEngine> engine;
                     if (NS_FAILED(BuildEngineFromRules(
@@ -1674,6 +1668,7 @@ void ContentClassifierService::UpdateFeatures(
                       continue;
                     }
                     builtEngines[i] = std::move(engine);
+                    cacheWrites[i] = true;
                   }
 
                   bool didFullWork = false;
@@ -1700,7 +1695,9 @@ void ContentClassifierService::UpdateFeatures(
                             features[i]->mName, featureVersions[i], current);
                         continue;
                       }
-                      cacheEngines[i] = builtEngines[i];
+                      if (cacheWrites[i]) {
+                        cacheEngines[i] = builtEngines[i];
+                      }
                       self->InstallEngine(features[i]->mName,
                                           std::move(builtEngines[i]));
                     }
@@ -1721,7 +1718,8 @@ void ContentClassifierService::UpdateFeatures(
                   for (size_t i = 0; i < cacheEngines.Length(); ++i) {
                     if (cacheEngines[i]) {
                       ContentClassifierService::WriteEngineCache(
-                          *features[i], *cacheEngines[i]);
+                          cacheDirectory, *features[i], perFeatureRules[i],
+                          *cacheEngines[i]);
                     }
                   }
 

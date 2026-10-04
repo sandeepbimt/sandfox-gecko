@@ -68,6 +68,27 @@ pub unsafe extern "C" fn content_classifier_engine_from_rules(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn content_classifier_engine_from_serialized(
+    data: &ThinVec<u8>,
+    out_engine: *mut *mut ContentClassifierFFIEngine,
+) -> nsresult {
+    if out_engine.is_null() {
+        return NS_ERROR_INVALID_ARG;
+    }
+    let mut engine = Engine::from_rules(
+        Vec::new(),
+        adblock::lists::ParseOptions {
+            ..adblock::lists::ParseOptions::default()
+        },
+    );
+    if engine.deserialize(data.as_ref()).is_err() {
+        return NS_ERROR_INVALID_ARG;
+    }
+    *out_engine = Box::into_raw(Box::new(ContentClassifierFFIEngine { engine }));
+    NS_OK
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn content_classifier_engine_destroy(
     engine: *mut ContentClassifierFFIEngine,
 ) {

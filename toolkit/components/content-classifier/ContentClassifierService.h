@@ -20,6 +20,7 @@
 #include "nsIClassifiedChannel.h"
 #include "nsIContentClassifierService.h"
 #include "nsIContentClassifierRemoteSettingsClient.h"
+#include "nsIFile.h"
 #include "nsISupportsImpl.h"
 #include "nsLiteralString.h"
 #include "nsTArray.h"
@@ -306,8 +307,9 @@ class ContentClassifierService final : public nsIAsyncShutdownBlocker,
       const nsTArray<const ContentClassifierFeature*>& aFeatures,
       EnginesPrefsSnapshot aPreferenceSnapshot);
 
-  void LoadCachedEngines();
-  static void WriteEngineCache(const ContentClassifierFeature& aFeature,
+  static void WriteEngineCache(nsIFile* aCacheDirectory,
+                               const ContentClassifierFeature& aFeature,
+                               const nsTArray<nsCString>& aRules,
                                ContentClassifierEngine& aEngine);
 
   // Put the given engine into the authoritative map. Doesn't update references
@@ -391,6 +393,8 @@ class ContentClassifierService final : public nsIAsyncShutdownBlocker,
       MOZ_GUARDED_BY(mLock);
   nsTArray<RefPtr<ContentClassifierEngine>> mAnnotateEnginesPBM
       MOZ_GUARDED_BY(mLock);
+
+  nsCOMPtr<nsIFile> mCacheDirectory;
 
   // RemoteSettings client for fetching filter lists. All reads and
   // writes must happen on the main thread; each call site asserts.

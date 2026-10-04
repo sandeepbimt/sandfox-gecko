@@ -107,9 +107,8 @@ class ContentClassifierEngine final {
     return NS_OK;
   }
 
-  nsresult Deserialize(const nsTArray<uint8_t>& aData) {
-    return content_classifier_engine_deserialize(
-        mEngine, aData.Elements(), aData.Length());
+  nsresult InitFromSerialized(const nsTArray<uint8_t>& aData) {
+    return content_classifier_engine_from_serialized(&aData, &mEngine);
   }
 
   const ContentClassifierFeature& Feature() const { return mFeature; }
