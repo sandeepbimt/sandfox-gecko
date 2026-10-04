@@ -1720,7 +1720,8 @@ void ContentClassifierService::UpdateFeatures(
                   // classification path must never wait on disk I/O.
                   for (size_t i = 0; i < cacheEngines.Length(); ++i) {
                     if (cacheEngines[i]) {
-                      WriteEngineCache(*features[i], *cacheEngines[i]);
+                      ContentClassifierService::WriteEngineCache(
+                          *features[i], *cacheEngines[i]);
                     }
                   }
 
