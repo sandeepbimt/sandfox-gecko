@@ -1677,6 +1677,8 @@ void ContentClassifierService::UpdateFeatures(
                   }
 
                   bool didFullWork = false;
+                  nsTArray<RefPtr<ContentClassifierEngine>> cacheEngines;
+                  cacheEngines.SetLength(features.Length());
                   {
                     MutexAutoLock lock(self->mLock);
                     if (self->mInitPhase != InitPhase::InitSucceeded) {
@@ -1698,13 +1700,9 @@ void ContentClassifierService::UpdateFeatures(
                             features[i]->mName, featureVersions[i], current);
                         continue;
                       }
-                      RefPtr<ContentClassifierEngine> cacheEngine =
-                          builtEngines[i];
+                      cacheEngines[i] = builtEngines[i];
                       self->InstallEngine(features[i]->mName,
                                           std::move(builtEngines[i]));
-                      if (cacheEngine) {
-                        WriteEngineCache(*features[i], *cacheEngine);
-                      }
                     }
                     // Only run Populate / Prune (and the Notify below)
                     // when this is still the latest UpdateFeatures call.
@@ -1715,6 +1713,14 @@ void ContentClassifierService::UpdateFeatures(
                           snapshot);
                       self->PruneInactiveEngines(snapshot);
                       didFullWork = true;
+                    }
+                  }
+
+                  // Cache writes are deliberately outside mLock. The
+                  // classification path must never wait on disk I/O.
+                  for (size_t i = 0; i < cacheEngines.Length(); ++i) {
+                    if (cacheEngines[i]) {
+                      WriteEngineCache(*features[i], *cacheEngines[i]);
                     }
                   }
 
