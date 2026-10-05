@@ -35,7 +35,7 @@ jobs:
 
       - name: Compile affected native targets
         run: |
-          ./mach build gfx/2d layout/generic layout/painting
+          ./mach build --allow-subdirectory-build gfx/2d layout/generic layout/painting
 
       - name: Report build result
         if: always()
