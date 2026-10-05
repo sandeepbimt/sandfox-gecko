@@ -53,6 +53,7 @@ EXPORTS.mozilla.gfx += [
     "Scale.h",
     "ScaleFactor.h",
     "ScaleFactors2D.h",
+    "SandfoxDarkModeColorFilter.h",
     "SourceSurfaceCairo.h",
     "SourceSurfaceRawData.h",
     "StackArray.h",

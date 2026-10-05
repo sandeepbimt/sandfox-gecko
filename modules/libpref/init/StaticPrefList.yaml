@@ -11101,6 +11101,12 @@
   value: 2
   mirror: always
 
+# Enables the SANDFOX renderer-level Smart Dark background prototype.
+- name: layout.css.sandfox-dark-pages.enabled
+  type: RelaxedAtomicBool
+  value: false
+  mirror: always
+
 # Dictates whether or not the prefers-reduced-transparency media query is enabled.
 - name: layout.css.prefers-reduced-transparency.enabled
   type: RelaxedAtomicBool

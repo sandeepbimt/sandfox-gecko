@@ -23,6 +23,7 @@ UNIFIED_SOURCES += [
     "TestPolygon.cpp",
     "TestQcms.cpp",
     "TestRegion.cpp",
+    "TestSandfoxDarkModeColorFilter.cpp",
     "TestSkipChars.cpp",
     "TestSwizzle.cpp",
     "TestTextures.cpp",

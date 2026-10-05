@@ -72,6 +72,7 @@
 #include "mozilla/gfx/2D.h"
 #include "mozilla/gfx/Logging.h"
 #include "mozilla/gfx/PathHelpers.h"
+#include "mozilla/gfx/SandfoxDarkModeColorFilter.h"
 #include "mozilla/gfx/gfxVars.h"
 #include "mozilla/glean/GfxMetrics.h"
 #include "mozilla/layers/AnimationHelper.h"
@@ -126,6 +127,13 @@ LazyLogModule sParentDisplayListLog("dl.parent");
 LazyLogModule& GetLoggerByProcess() {
   return XRE_IsContentProcess() ? sContentDisplayListLog
                                 : sParentDisplayListLog;
+}
+
+static gfx::sRGBColor SandfoxPaintBackgroundColor(const gfx::sRGBColor& aColor) {
+  if (!StaticPrefs::layout_css_sandfox_dark_pages_enabled()) {
+    return aColor;
+  }
+  return gfx::SandfoxDarkModeColorFilter::TransformBackground(aColor);
 }
 
 #ifdef MOZ_DIAGNOSTIC_ASSERT_ENABLED
@@ -4002,7 +4010,7 @@ bool nsDisplayBackgroundColor::CreateWebRenderCommands(
     wr::DisplayListBuilder& aBuilder, wr::IpcResourceUpdateQueue& aResources,
     const StackingContextHelper& aSc, RenderRootStateManager* aManager,
     nsDisplayListBuilder* aDisplayListBuilder) {
-  gfx::sRGBColor color = mColor;
+  gfx::sRGBColor color = SandfoxPaintBackgroundColor(mColor);
   color.a *= aBuilder.GetInheritedOpacity();
 
   if (color == sRGBColor() &&
@@ -4012,6 +4020,16 @@ bool nsDisplayBackgroundColor::CreateWebRenderCommands(
   }
 
   if (HasBackgroundClipText()) {
+    return false;
+  }
+
+  // A transformed base color cannot safely participate in the existing
+  // compositor animation path, because the compositor would interpolate the
+  // untransformed CSS colors. Fall back to main-thread painting while the
+  // prototype is enabled.
+  if (StaticPrefs::layout_css_sandfox_dark_pages_enabled() &&
+      EffectCompositor::HasAnimationsForCompositor(
+          mFrame, DisplayItemType::TYPE_BACKGROUND_COLOR)) {
     return false;
   }
 
@@ -4067,7 +4085,7 @@ void nsDisplayBackgroundColor::PaintWithClip(nsDisplayListBuilder* aBuilder,
   int32_t A2D = mFrame->PresContext()->AppUnitsPerDevPixel();
   Rect bounds = ToRect(nsLayoutUtils::RectToGfxRect(fillRect, A2D));
   MaybeSnapToDevicePixels(bounds, *dt);
-  ColorPattern fill(ToDeviceColor(mColor));
+  ColorPattern fill(ToDeviceColor(SandfoxPaintBackgroundColor(mColor)));
 
   if (aClip.GetRoundedRectCount()) {
     MOZ_ASSERT(aClip.GetRoundedRectCount() == 1);
@@ -4120,6 +4138,7 @@ void nsDisplayBackgroundColor::Paint(nsDisplayListBuilder* aBuilder,
   ColorPattern color(ToDeviceColor(mColor));
   aDrawTarget.FillRect(rect, color);
 #else
+  const gfx::sRGBColor color = SandfoxPaintBackgroundColor(mColor);
   gfxContext* ctx = aCtx;
   gfxRect bounds = nsLayoutUtils::RectToGfxRect(
       mBackgroundRect, mFrame->PresContext()->AppUnitsPerDevPixel());
@@ -4129,7 +4148,7 @@ void nsDisplayBackgroundColor::Paint(nsDisplayListBuilder* aBuilder,
       return;
     }
 
-    ctx->SetColor(mColor);
+    ctx->SetColor(color);
     ctx->NewPath();
     ctx->SnappedRectangle(bounds);
     ctx->Fill();
@@ -4144,7 +4163,7 @@ void nsDisplayBackgroundColor::Paint(nsDisplayListBuilder* aBuilder,
         ctx, mFrame, mFrame->StyleBackground()->BottomLayer(), mBackgroundRect);
   }
 
-  ctx->SetColor(mColor);
+  ctx->SetColor(color);
   ctx->NewPath();
   ctx->SnappedRectangle(bounds);
   ctx->Fill();
@@ -4176,7 +4195,7 @@ nsRegion nsDisplayBackgroundColor::GetOpaqueRegion(
 
 Maybe<nscolor> nsDisplayBackgroundColor::IsUniform(
     nsDisplayListBuilder* aBuilder) const {
-  return Some(mColor.ToABGR());
+  return Some(SandfoxPaintBackgroundColor(mColor).ToABGR());
 }
 
 void nsDisplayBackgroundColor::HitTest(nsDisplayListBuilder* aBuilder,
