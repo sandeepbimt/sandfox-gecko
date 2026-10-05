@@ -702,6 +702,26 @@ nsCSSGradientRenderer nsCSSGradientRenderer::Create(
 
   ResolveMidpoints(stops);
 
+  // Gradients are background-like paint data. Transform their resolved stops
+  // before either software painting or WebRender consumes them, so there is
+  // no second recoloring pass and no software/WebRender divergence.
+  if (StaticPrefs::layout_css_sandfox_dark_pages_enabled() &&
+      !aPresContext->IsChrome()) {
+    const auto flags = aComputedStyle->StyleUI()->mColorScheme.bits;
+    bool nativeDark = false;
+    if (auto scheme = LookAndFeel::ExplicitColorSchemeForStyle(
+            *aPresContext->Document(), flags)) {
+      nativeDark = *scheme == ColorScheme::Dark;
+    }
+    if (!nativeDark) {
+      for (auto& stop : stops) {
+        stop.mColor = gfx::SandfoxDarkModeColorFilter::TransformBackground(
+                          gfx::sRGBColor::FromABGR(stop.mColor))
+                          .ToABGR();
+      }
+    }
+  }
+
   nsCSSGradientRenderer renderer;
   renderer.mPresContext = aPresContext;
   renderer.mGradient = &aGradient;
