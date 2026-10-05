@@ -5,42 +5,112 @@
 #ifndef mozilla_gfx_SandfoxDarkModeColorFilter_h
 #define mozilla_gfx_SandfoxDarkModeColorFilter_h
 
+#include "mozilla/LookAndFeel.h"
 #include "mozilla/RelativeLuminanceUtils.h"
+#include "mozilla/StaticPrefs_layout.h"
 #include "mozilla/gfx/Types.h"
+#include "nsIFrame.h"
+#include "nsPresContext.h"
 
 namespace mozilla::gfx {
 
-// First SANDFOX Smart Dark renderer primitive.
-//
-// This deliberately handles only solid background colors in V1.  The layout
-// layer decides which paint role is being transformed; images, video, canvas,
-// SVG assets, and text are not touched by this primitive.
 class SandfoxDarkModeColorFilter final {
  public:
+  enum class Role : uint8_t { Background, Foreground, Border, Shadow };
+
+  static bool IsActive(const nsIFrame& aFrame) {
+    if (!StaticPrefs::layout_css_sandfox_dark_pages_enabled() ||
+        aFrame.PresContext()->IsChrome()) {
+      return false;
+    }
+
+    // Explicit native dark support wins. This is the primary double-darkening
+    // guard. Light-only and unspecified documents use Smart Dark.
+    if (auto scheme = LookAndFeel::ExplicitColorSchemeForFrame(&aFrame)) {
+      if (*scheme == ColorScheme::Dark) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static sRGBColor Transform(const nsIFrame& aFrame, const sRGBColor& aColor,
+                             Role aRole,
+                             const sRGBColor* aBackground = nullptr) {
+    if (!IsActive(aFrame) || aColor.a == 0.0f) {
+      return aColor;
+    }
+
+    const float luminance =
+        RelativeLuminanceUtils::Compute(aColor.ToABGR());
+    const float backgroundLuminance =
+        aBackground ? RelativeLuminanceUtils::Compute(aBackground->ToABGR())
+                    : luminance;
+
+    switch (aRole) {
+      case Role::Background:
+        return TransformBackground(aColor, luminance);
+      case Role::Foreground:
+        if (backgroundLuminance > 0.30f && luminance < 0.35f) {
+          return Adjust(aColor, 0.90f);
+        }
+        return aColor;
+      case Role::Border:
+        if (backgroundLuminance > 0.30f && luminance > 0.55f) {
+          return Adjust(aColor, 0.25f);
+        }
+        if (backgroundLuminance < 0.30f && luminance < 0.12f) {
+          return Adjust(aColor, 0.30f);
+        }
+        return aColor;
+      case Role::Shadow:
+        if (backgroundLuminance < 0.30f && luminance > 0.65f) {
+          return Adjust(aColor, 0.12f);
+        }
+        return aColor;
+    }
+    return aColor;
+  }
+
   static sRGBColor TransformBackground(const sRGBColor& aColor) {
-    if (aColor.a == 0.0f) {
+    return TransformBackground(
+        aColor, RelativeLuminanceUtils::Compute(aColor.ToABGR()));
+  }
+
+ private:
+  static sRGBColor Adjust(const sRGBColor& aColor, float aTargetLuminance) {
+    return sRGBColor::FromABGR(RelativeLuminanceUtils::Adjust(
+        aColor.ToABGR(), aTargetLuminance));
+  }
+
+  static sRGBColor TransformBackground(const sRGBColor& aColor,
+                                       float aLuminance) {
+    if (aLuminance < 0.70f) {
       return aColor;
     }
 
-    const nscolor color = aColor.ToABGR();
-    const float luminance = RelativeLuminanceUtils::Compute(color);
-
-    // Keep already-dark backgrounds unchanged.  This threshold is intentionally
-    // conservative for the first renderer prototype and can be tuned after
-    // measured compatibility testing.
-    constexpr float kBackgroundLuminanceThreshold = 0.75f;
-    if (luminance < kBackgroundLuminanceThreshold) {
-      return aColor;
+    const uint32_t theme = StaticPrefs::layout_css_sandfox_dark_pages_theme();
+    float target = 0.10f;
+    switch (theme) {
+      case 1:  // Deep
+        target = 0.06f;
+        break;
+      case 2:  // AMOLED/OLED
+        target = 0.0f;
+        break;
+      case 3:  // Grey
+        target = 0.15f;
+        break;
+      case 4:  // Blue
+        target = 0.12f;
+        break;
+      case 5:  // Warm
+        target = 0.13f;
+        break;
+      default:
+        break;
     }
-
-    // Map bright backgrounds to a dark neutral luminance while preserving the
-    // original hue/chroma relationship as much as the luminance adjustment
-    // permits.  This follows the same role-aware/thresholded principle used by
-    // Chromium's native Force Dark pipeline without applying a page-wide
-    // inversion matrix.
-    constexpr float kTargetBackgroundLuminance = 0.06f;
-    return sRGBColor::FromABGR(
-        RelativeLuminanceUtils::Adjust(color, kTargetBackgroundLuminance));
+    return Adjust(aColor, target);
   }
 };
 
