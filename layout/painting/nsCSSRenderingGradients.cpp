@@ -712,7 +712,7 @@ nsCSSGradientRenderer nsCSSGradientRenderer::Create(
     bool nativeDark = false;
     if (auto scheme = LookAndFeel::ExplicitColorSchemeForStyle(
             *aPresContext->Document(), flags)) {
-      nativeDark = *scheme == ColorScheme::Dark;
+      nativeDark = *scheme == LookAndFeel::ColorScheme::Dark;
     }
     if (!nativeDark) {
       for (auto& stop : stops) {
