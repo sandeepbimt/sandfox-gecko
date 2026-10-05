@@ -34,6 +34,7 @@
 #include "mozilla/gfx/Helpers.h"
 #include "mozilla/gfx/Logging.h"
 #include "mozilla/gfx/PathHelpers.h"
+#include "mozilla/gfx/SandfoxDarkModeColorFilter.h"
 #include "nsBlockFrame.h"
 #include "nsCSSColorUtils.h"
 #include "nsCSSFrameConstructor.h"
