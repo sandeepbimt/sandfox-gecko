@@ -449,6 +449,18 @@ public final class GeckoRuntimeSettings extends RuntimeSettings {
       return this;
     }
 
+    /** Enables SANDFOX native Smart Dark rendering. */
+    public @NonNull Builder sandfoxDarkPagesEnabled(final boolean enabled) {
+      getSettings().mSandfoxDarkPages.set(enabled);
+      return this;
+    }
+
+    /** Selects the SANDFOX built-in Dark Pages theme. */
+    public @NonNull Builder sandfoxDarkPagesTheme(final int theme) {
+      getSettings().mSandfoxDarkPagesTheme.set(theme);
+      return this;
+    }
+
     /**
      * Set whether auto-zoom to editable fields should be enabled.
      *
@@ -845,6 +857,11 @@ public final class GeckoRuntimeSettings extends RuntimeSettings {
       new PrefWithoutDefault<Boolean>("browser.crashReports.requestedNeverShowAgain");
   /* package */ final PrefWithoutDefault<String> mCrliteChannel =
       new PrefWithoutDefault<String>("security.pki.crlite_channel");
+
+  /* package */ final Pref<Boolean> mSandfoxDarkPages =
+      new Pref<Boolean>("layout.css.sandfox-dark-pages.enabled", false);
+  /* package */ final Pref<Integer> mSandfoxDarkPagesTheme =
+      new Pref<Integer>("layout.css.sandfox-dark-pages.theme", 0);
 
   /* package */ int mPreferredColorScheme = COLOR_SCHEME_SYSTEM;
 
@@ -1768,6 +1785,28 @@ public final class GeckoRuntimeSettings extends RuntimeSettings {
       mPreferredColorScheme = scheme;
       GeckoSystemStateListener.onDeviceChanged();
     }
+    return this;
+  }
+
+  /** Gets whether SANDFOX Smart Dark is enabled. */
+  public boolean getSandfoxDarkPagesEnabled() {
+    return mSandfoxDarkPages.get();
+  }
+
+  /** Enables or disables SANDFOX Smart Dark rendering. */
+  public @NonNull GeckoRuntimeSettings setSandfoxDarkPagesEnabled(final boolean enabled) {
+    mSandfoxDarkPages.commit(enabled);
+    return this;
+  }
+
+  /** Gets the SANDFOX Dark Pages theme id. */
+  public int getSandfoxDarkPagesTheme() {
+    return mSandfoxDarkPagesTheme.get();
+  }
+
+  /** Sets the SANDFOX Dark Pages theme id. */
+  public @NonNull GeckoRuntimeSettings setSandfoxDarkPagesTheme(final int theme) {
+    mSandfoxDarkPagesTheme.commit(theme);
     return this;
   }
 
