@@ -14,6 +14,7 @@
 #include "gfxGradientCache.h"
 #include "gfxUtils.h"
 #include "mozilla/ComputedStyle.h"
+#include "mozilla/gfx/SandfoxDarkModeColorFilter.h"
 #include "mozilla/MathAlgorithms.h"
 #include "mozilla/ProfilerLabels.h"
 #include "mozilla/StaticPrefs_layout.h"
