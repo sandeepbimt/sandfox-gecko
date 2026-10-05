@@ -47,7 +47,8 @@ ContentClassifierEngineResult ContentClassifierEngine::CheckNetworkRequest(
 
   nsresult rv = content_classifier_engine_check_network_request_preparsed(
       mEngine, &aRequest.mUrl, &aRequest.mSchemelessSite, &sourceSite,
-      &aRequest.mRequestType, thirdParty, aPreviouslyMatched, &matched,
+      &aRequest.mRequestType, &aRequest.mRequestMethod, thirdParty,
+      aPreviouslyMatched, &matched,
       &important, &exception);
   return ContentClassifierEngineResult(matched, !exception.IsEmpty(), important,
                                        rv, mFeature);
@@ -61,6 +62,11 @@ ContentClassifierRequest::ContentClassifierRequest(nsIChannel* aChannel)
 
   rv = uri->GetSpec(mUrl);
   if (NS_FAILED(rv)) return;
+
+  nsCOMPtr<nsIHttpChannel> httpChannel = do_QueryInterface(aChannel);
+  if (httpChannel && NS_FAILED(httpChannel->GetRequestMethod(mRequestMethod))) {
+    mRequestMethod.Truncate();
+  }
 
   nsCOMPtr<nsILoadInfo> loadInfo;
   rv = aChannel->GetLoadInfo(getter_AddRefs(loadInfo));
