@@ -4084,7 +4084,7 @@ void nsDisplayBackgroundColor::PaintWithClip(nsDisplayListBuilder* aBuilder,
   int32_t A2D = mFrame->PresContext()->AppUnitsPerDevPixel();
   Rect bounds = ToRect(nsLayoutUtils::RectToGfxRect(fillRect, A2D));
   MaybeSnapToDevicePixels(bounds, *dt);
-  ColorPattern fill(ToDeviceColor(SandfoxPaintBackgroundColor(mColor)));
+  ColorPattern fill(ToDeviceColor(SandfoxPaintBackgroundColor(mFrame, mColor)));
 
   if (aClip.GetRoundedRectCount()) {
     MOZ_ASSERT(aClip.GetRoundedRectCount() == 1);
