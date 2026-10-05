@@ -129,11 +129,10 @@ LazyLogModule& GetLoggerByProcess() {
                                 : sParentDisplayListLog;
 }
 
-static gfx::sRGBColor SandfoxPaintBackgroundColor(const gfx::sRGBColor& aColor) {
-  if (!StaticPrefs::layout_css_sandfox_dark_pages_enabled()) {
-    return aColor;
-  }
-  return gfx::SandfoxDarkModeColorFilter::TransformBackground(aColor);
+static gfx::sRGBColor SandfoxPaintBackgroundColor(nsIFrame* aFrame,
+                                                       const gfx::sRGBColor& aColor) {
+  return gfx::SandfoxDarkModeColorFilter::Transform(
+      *aFrame, aColor, gfx::SandfoxDarkModeColorFilter::Role::Background);
 }
 
 #ifdef MOZ_DIAGNOSTIC_ASSERT_ENABLED
@@ -4010,7 +4009,7 @@ bool nsDisplayBackgroundColor::CreateWebRenderCommands(
     wr::DisplayListBuilder& aBuilder, wr::IpcResourceUpdateQueue& aResources,
     const StackingContextHelper& aSc, RenderRootStateManager* aManager,
     nsDisplayListBuilder* aDisplayListBuilder) {
-  gfx::sRGBColor color = SandfoxPaintBackgroundColor(mColor);
+  gfx::sRGBColor color = SandfoxPaintBackgroundColor(mFrame, mColor);
   color.a *= aBuilder.GetInheritedOpacity();
 
   if (color == sRGBColor() &&

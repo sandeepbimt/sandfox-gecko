@@ -6,6 +6,7 @@
 
 #include "mozilla/LookAndFeel.h"
 #include "mozilla/RelativeLuminanceUtils.h"
+#include "mozilla/gfx/SandfoxDarkModeColorFilter.h"
 #include "nsCSSColorUtils.h"
 #include "nsCSSRendering.h"
 #include "nsFrameSelection.h"
@@ -94,16 +95,35 @@ nscolor nsTextPaintStyle::GetTextColor() {
     switch (style->mFill.kind.tag) {
       case StyleSVGPaintKind::Tag::None:
         return NS_RGBA(0, 0, 0, 0);
-      case StyleSVGPaintKind::Tag::Color:
-        return nsLayoutUtils::GetTextColor(mFrame, &nsStyleSVG::mFill);
+      case StyleSVGPaintKind::Tag::Color: {
+        InitCommonColors();
+        const nscolor color =
+            nsLayoutUtils::GetTextColor(mFrame, &nsStyleSVG::mFill);
+        const gfx::sRGBColor input = gfx::sRGBColor::FromABGR(color);
+        const gfx::sRGBColor background =
+            gfx::sRGBColor::FromABGR(mFrameBackgroundColor);
+        return gfx::SandfoxDarkModeColorFilter::Transform(
+                   *mFrame, input,
+                   gfx::SandfoxDarkModeColorFilter::Role::Foreground,
+                   &background)
+            .ToABGR();
+      }
       default:
         NS_ERROR("cannot resolve SVG paint to nscolor");
         return NS_RGBA(0, 0, 0, 255);
     }
   }
 
-  return nsLayoutUtils::GetTextColor(mFrame,
-                                     &nsStyleText::mWebkitTextFillColor);
+  InitCommonColors();
+  const nscolor color =
+      nsLayoutUtils::GetTextColor(mFrame, &nsStyleText::mWebkitTextFillColor);
+  const gfx::sRGBColor input = gfx::sRGBColor::FromABGR(color);
+  const gfx::sRGBColor background =
+      gfx::sRGBColor::FromABGR(mFrameBackgroundColor);
+  return gfx::SandfoxDarkModeColorFilter::Transform(
+             *mFrame, input, gfx::SandfoxDarkModeColorFilter::Role::Foreground,
+             &background)
+      .ToABGR();
 }
 
 bool nsTextPaintStyle::GetSelectionColors(nscolor* aForeColor,

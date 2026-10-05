@@ -34,6 +34,7 @@
 #include "mozilla/gfx/Helpers.h"
 #include "mozilla/gfx/Logging.h"
 #include "mozilla/gfx/PathHelpers.h"
+#include "mozilla/gfx/SandfoxDarkModeColorFilter.h"
 #include "nsBlockFrame.h"
 #include "nsCSSColorUtils.h"
 #include "nsCSSFrameConstructor.h"
@@ -785,10 +786,20 @@ static nsCSSBorderRenderer ConstructBorderRenderer(
   StyleBorderStyle borderStyles[4];
   nscolor borderColors[4];
 
-  // pull out styles, colors
+  // Pull out styles and colors. Solid borders participate in the same
+  // role-aware Smart Dark pipeline as page backgrounds and text.
+  const auto effectiveBackground = FindEffectiveBackgroundColor(aForFrame);
+  const gfx::sRGBColor background =
+      gfx::sRGBColor::FromABGR(effectiveBackground.mColor);
   for (const auto i : mozilla::AllPhysicalSides()) {
     borderStyles[i] = aStyleBorder.GetBorderStyle(i);
-    borderColors[i] = aStyleBorder.BorderColorFor(i).CalcColor(*aStyle);
+    const gfx::sRGBColor color = gfx::sRGBColor::FromABGR(
+        aStyleBorder.BorderColorFor(i).CalcColor(*aStyle));
+    borderColors[i] = gfx::SandfoxDarkModeColorFilter::Transform(
+                          *aForFrame, color,
+                          gfx::SandfoxDarkModeColorFilter::Role::Border,
+                          &background)
+                          .ToABGR();
   }
 
   PrintAsFormatString(
@@ -1486,6 +1497,12 @@ void nsCSSRendering::PaintBoxShadowOuter(nsPresContext* aPresContext,
     MaybeSnapToDevicePixels(shadowGfxRectPlusBlur, aDrawTarget, true);
 
     sRGBColor gfxShadowColor = GetShadowColor(shadow.base, aForFrame, aOpacity);
+    const auto effectiveBackground = FindEffectiveBackgroundColor(aForFrame);
+    const sRGBColor background =
+        sRGBColor::FromABGR(effectiveBackground.mColor);
+    gfxShadowColor = gfx::SandfoxDarkModeColorFilter::Transform(
+        *aForFrame, gfxShadowColor,
+        gfx::SandfoxDarkModeColorFilter::Role::Shadow, &background);
 
     if (nativeTheme) {
       nsContextBoxBlur blurringArea;
@@ -1770,6 +1787,12 @@ void nsCSSRendering::PaintBoxShadowInner(nsPresContext* aPresContext,
     shadowGfxRect.Round();
 
     sRGBColor shadowColor = GetShadowColor(shadow.base, aForFrame, 1.0);
+    const auto effectiveBackground = FindEffectiveBackgroundColor(aForFrame);
+    const sRGBColor background =
+        sRGBColor::FromABGR(effectiveBackground.mColor);
+    shadowColor = gfx::SandfoxDarkModeColorFilter::Transform(
+        *aForFrame, shadowColor,
+        gfx::SandfoxDarkModeColorFilter::Role::Shadow, &background);
     aRenderingContext.Save();
 
     // This clips the outside border radius.
