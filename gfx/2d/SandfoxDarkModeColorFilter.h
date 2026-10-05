@@ -7,6 +7,7 @@
 
 #include "mozilla/LookAndFeel.h"
 #include "mozilla/RelativeLuminanceUtils.h"
+#include "mozilla/StaticPrefs_layout.h"
 #include "mozilla/gfx/Types.h"
 #include "nsIFrame.h"
 #include "nsPresContext.h"
