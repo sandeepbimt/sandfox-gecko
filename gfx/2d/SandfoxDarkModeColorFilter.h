@@ -85,27 +85,27 @@ class SandfoxDarkModeColorFilter final {
 
   static sRGBColor TransformBackground(const sRGBColor& aColor,
                                        float aLuminance) {
-    if (aLuminance < 0.70f) {
+    if (aLuminance < 0.80f) {
       return aColor;
     }
 
     const uint32_t theme = StaticPrefs::layout_css_sandfox_dark_pages_theme();
-    float target = 0.10f;
+    // Chromium Force Dark uses a very dark default surface (roughly #121212).\n    // Keep SANDFOX similarly dark while preserving the source hue.\n    float target = 0.006f;
     switch (theme) {
       case 1:  // Deep
-        target = 0.06f;
+        target = 0.002f;
         break;
       case 2:  // AMOLED/OLED
         target = 0.0f;
         break;
       case 3:  // Grey
-        target = 0.15f;
+        target = 0.030f;
         break;
       case 4:  // Blue
-        target = 0.12f;
+        target = 0.012f;
         break;
       case 5:  // Warm
-        target = 0.13f;
+        target = 0.015f;
         break;
       default:
         break;
