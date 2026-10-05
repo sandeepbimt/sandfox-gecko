@@ -21,7 +21,7 @@ TEST(SandfoxDarkModeColorFilter, BrightBackgroundBecomesDark) {
   const sRGBColor input = sRGBColor::FromABGR(NS_RGB(255, 255, 255));
   const sRGBColor output = SandfoxDarkModeColorFilter::TransformBackground(input);
 
-  EXPECT_LT(RelativeLuminanceUtils::Compute(output.ToABGR()), 0.10f);
+  EXPECT_LT(RelativeLuminanceUtils::Compute(output.ToABGR()), 0.01f);
   EXPECT_EQ(NS_GET_A(output.ToABGR()), 255);
 }
 
