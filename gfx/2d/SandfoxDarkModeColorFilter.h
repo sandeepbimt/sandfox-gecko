@@ -90,7 +90,8 @@ class SandfoxDarkModeColorFilter final {
     }
 
     const uint32_t theme = StaticPrefs::layout_css_sandfox_dark_pages_theme();
-    // Chromium Force Dark uses a very dark default surface (roughly #121212).\n    // Keep SANDFOX similarly dark while preserving the source hue.\n    float target = 0.006f;
+    // Chromium Force Dark uses a very dark default surface (roughly #121212).
+    // Keep SANDFOX similarly dark while preserving the source hue.\n    float target = 0.006f;
     switch (theme) {
       case 1:  // Deep
         target = 0.002f;
