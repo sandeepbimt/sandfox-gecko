@@ -129,8 +129,8 @@ LazyLogModule& GetLoggerByProcess() {
                                 : sParentDisplayListLog;
 }
 
-static gfx::sRGBColor SandfoxPaintBackgroundColor(nsIFrame* aFrame,
-                                                       const gfx::sRGBColor& aColor) {
+static gfx::sRGBColor SandfoxPaintBackgroundColor(
+    nsIFrame* aFrame, const gfx::sRGBColor& aColor) {
   return gfx::SandfoxDarkModeColorFilter::Transform(
       *aFrame, aColor, gfx::SandfoxDarkModeColorFilter::Role::Background);
 }
