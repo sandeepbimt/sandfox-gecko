@@ -30,6 +30,7 @@
 #include "mozilla/SVGTextFrame.h"
 #include "mozilla/ServoStyleSet.h"
 #include "mozilla/StaticPrefs_layout.h"
+#include "mozilla/gfx/SandfoxDarkModeColorFilter.h"
 #include "mozilla/StaticPresData.h"
 #include "mozilla/TextEditor.h"
 #include "mozilla/TextEvents.h"
@@ -7831,7 +7832,9 @@ void nsTextFrame::PaintText(const PaintTextParams& aParams,
 
   nscolor foregroundColor = aParams.IsGenerateTextMask()
                                 ? NS_RGBA(0, 0, 0, 255)
-                                : textPaintStyle.GetTextColor();
+                                : gfx::SandfoxDarkModeColorFilter::Transform(
+                                      gfx::sRGBColor::FromABGR(textPaintStyle.GetTextColor()),
+                                      gfx::SandfoxDarkModeRole::Foreground).ToABGR();
   if (aOpacity != 1.0f) {
     gfx::sRGBColor gfxColor = gfx::sRGBColor::FromABGR(foregroundColor);
     gfxColor.a *= aOpacity;
@@ -7840,7 +7843,9 @@ void nsTextFrame::PaintText(const PaintTextParams& aParams,
 
   nscolor textStrokeColor = aParams.IsGenerateTextMask()
                                 ? NS_RGBA(0, 0, 0, 255)
-                                : textPaintStyle.GetWebkitTextStrokeColor();
+                                : gfx::SandfoxDarkModeColorFilter::Transform(
+                                      gfx::sRGBColor::FromABGR(textPaintStyle.GetWebkitTextStrokeColor()),
+                                      gfx::SandfoxDarkModeRole::Foreground).ToABGR();
   if (aOpacity != 1.0f) {
     gfx::sRGBColor gfxColor = gfx::sRGBColor::FromABGR(textStrokeColor);
     gfxColor.a *= aOpacity;

@@ -53,6 +53,7 @@
 #include "mozilla/StaticPrefs_gfx.h"
 #include "mozilla/StaticPrefs_layers.h"
 #include "mozilla/StaticPrefs_layout.h"
+#include "mozilla/gfx/SandfoxDarkModeColorFilter.h"
 #include "mozilla/StaticPrefs_print.h"
 #include "mozilla/StyleAnimationValue.h"
 #include "mozilla/UniquePtr.h"
@@ -4002,7 +4003,14 @@ bool nsDisplayBackgroundColor::CreateWebRenderCommands(
     wr::DisplayListBuilder& aBuilder, wr::IpcResourceUpdateQueue& aResources,
     const StackingContextHelper& aSc, RenderRootStateManager* aManager,
     nsDisplayListBuilder* aDisplayListBuilder) {
-  gfx::sRGBColor color = mColor;
+  if (gfx::SandfoxDarkModeColorFilter::Enabled() &&
+      EffectCompositor::HasAnimationsForCompositor(
+          mFrame, DisplayItemType::TYPE_BACKGROUND_COLOR)) {
+    return false;
+  }
+
+  gfx::sRGBColor color = gfx::SandfoxDarkModeColorFilter::Transform(
+      mColor, gfx::SandfoxDarkModeRole::Background);
   color.a *= aBuilder.GetInheritedOpacity();
 
   if (color == sRGBColor() &&
@@ -4067,7 +4075,8 @@ void nsDisplayBackgroundColor::PaintWithClip(nsDisplayListBuilder* aBuilder,
   int32_t A2D = mFrame->PresContext()->AppUnitsPerDevPixel();
   Rect bounds = ToRect(nsLayoutUtils::RectToGfxRect(fillRect, A2D));
   MaybeSnapToDevicePixels(bounds, *dt);
-  ColorPattern fill(ToDeviceColor(mColor));
+  ColorPattern fill(ToDeviceColor(gfx::SandfoxDarkModeColorFilter::Transform(
+      mColor, gfx::SandfoxDarkModeRole::Background)));
 
   if (aClip.GetRoundedRectCount()) {
     MOZ_ASSERT(aClip.GetRoundedRectCount() == 1);
@@ -4129,7 +4138,8 @@ void nsDisplayBackgroundColor::Paint(nsDisplayListBuilder* aBuilder,
       return;
     }
 
-    ctx->SetColor(mColor);
+    ctx->SetColor(gfx::SandfoxDarkModeColorFilter::Transform(
+        mColor, gfx::SandfoxDarkModeRole::Background));
     ctx->NewPath();
     ctx->SnappedRectangle(bounds);
     ctx->Fill();
@@ -4144,7 +4154,8 @@ void nsDisplayBackgroundColor::Paint(nsDisplayListBuilder* aBuilder,
         ctx, mFrame, mFrame->StyleBackground()->BottomLayer(), mBackgroundRect);
   }
 
-  ctx->SetColor(mColor);
+  ctx->SetColor(gfx::SandfoxDarkModeColorFilter::Transform(
+      mColor, gfx::SandfoxDarkModeRole::Background));
   ctx->NewPath();
   ctx->SnappedRectangle(bounds);
   ctx->Fill();
@@ -4176,7 +4187,8 @@ nsRegion nsDisplayBackgroundColor::GetOpaqueRegion(
 
 Maybe<nscolor> nsDisplayBackgroundColor::IsUniform(
     nsDisplayListBuilder* aBuilder) const {
-  return Some(mColor.ToABGR());
+  return Some(gfx::SandfoxDarkModeColorFilter::Transform(
+                  mColor, gfx::SandfoxDarkModeRole::Background).ToABGR());
 }
 
 void nsDisplayBackgroundColor::HitTest(nsDisplayListBuilder* aBuilder,

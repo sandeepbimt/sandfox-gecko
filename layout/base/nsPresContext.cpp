@@ -931,6 +931,10 @@ void nsPresContext::RecomputeBrowsingContextDependentData() {
 
   auto* top = browsingContext->Top();
   SetColorSchemeOverride([&] {
+    if (StaticPrefs::layout_css_sandfox_dark_pages_mode() == 2 && docURI &&
+        (docURI->SchemeIs("http") || docURI->SchemeIs("https"))) {
+      return PrefersColorSchemeOverride::Dark;
+    }
     auto overriden = top->PrefersColorSchemeOverride();
     if (browsingContext == top &&
         overriden != PrefersColorSchemeOverride::None) {

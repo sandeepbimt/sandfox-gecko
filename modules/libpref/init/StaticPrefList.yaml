@@ -10506,6 +10506,19 @@
 
 #---------------------------------------------------------------------------
 # Prefs starting with "layout."
+
+# SANDFOX Dark Pages: 0=off, 1=native color-scheme only, 2=Smart Dark.
+- name: layout.css.sandfox-dark-pages.mode
+  type: RelaxedAtomicUint32
+  value: 2
+  mirror: always
+
+# SANDFOX Dark Pages theme: 0=Dark, 1=Grey, 2=Deep, 3=AMOLED, 4=OLED, 5=Blue, 6=Warm.
+- name: layout.css.sandfox-dark-pages.theme
+  type: RelaxedAtomicUint32
+  value: 0
+  mirror: always
+
 #---------------------------------------------------------------------------
 
 # Debug-only pref to force enable the AccessibleCaret. If you want to

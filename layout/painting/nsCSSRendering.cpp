@@ -27,6 +27,7 @@
 #include "mozilla/SVGImageContext.h"
 #include "mozilla/ScrollContainerFrame.h"
 #include "mozilla/StaticPrefs_layout.h"
+#include "mozilla/gfx/SandfoxDarkModeColorFilter.h"
 #include "mozilla/StaticPtr.h"
 #include "mozilla/css/ImageLoader.h"
 #include "mozilla/dom/DocumentInlines.h"
@@ -788,7 +789,9 @@ static nsCSSBorderRenderer ConstructBorderRenderer(
   // pull out styles, colors
   for (const auto i : mozilla::AllPhysicalSides()) {
     borderStyles[i] = aStyleBorder.GetBorderStyle(i);
-    borderColors[i] = aStyleBorder.BorderColorFor(i).CalcColor(*aStyle);
+    borderColors[i] = gfx::SandfoxDarkModeColorFilter::Transform(
+        gfx::sRGBColor::FromABGR(aStyleBorder.BorderColorFor(i).CalcColor(*aStyle)),
+        gfx::SandfoxDarkModeRole::Border).ToABGR();
   }
 
   PrintAsFormatString(
@@ -1485,7 +1488,9 @@ void nsCSSRendering::PaintBoxShadowOuter(nsPresContext* aPresContext,
     shadowGfxRectPlusBlur.RoundOut();
     MaybeSnapToDevicePixels(shadowGfxRectPlusBlur, aDrawTarget, true);
 
-    sRGBColor gfxShadowColor = GetShadowColor(shadow.base, aForFrame, aOpacity);
+    sRGBColor gfxShadowColor = gfx::SandfoxDarkModeColorFilter::Transform(
+        GetShadowColor(shadow.base, aForFrame, aOpacity),
+        gfx::SandfoxDarkModeRole::Shadow);
 
     if (nativeTheme) {
       nsContextBoxBlur blurringArea;
@@ -1769,7 +1774,9 @@ void nsCSSRendering::PaintBoxShadowInner(nsPresContext* aPresContext,
     Rect shadowGfxRect = NSRectToRect(paddingRect, oneDevPixel);
     shadowGfxRect.Round();
 
-    sRGBColor shadowColor = GetShadowColor(shadow.base, aForFrame, 1.0);
+    sRGBColor shadowColor = gfx::SandfoxDarkModeColorFilter::Transform(
+        GetShadowColor(shadow.base, aForFrame, 1.0),
+        gfx::SandfoxDarkModeRole::Shadow);
     aRenderingContext.Save();
 
     // This clips the outside border radius.

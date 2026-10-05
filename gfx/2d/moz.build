@@ -49,6 +49,7 @@ EXPORTS.mozilla.gfx += [
     "RecordedEvent.h",
     "RecordingTypes.h",
     "Rect.h",
+    "SandfoxDarkModeColorFilter.h",
     "RectAbsolute.h",
     "Scale.h",
     "ScaleFactor.h",
