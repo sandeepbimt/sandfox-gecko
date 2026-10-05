@@ -28,22 +28,21 @@ dependencies = [
 
 [[package]]
 name = "adblock"
-version = "0.12.1"
+version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "698c1e831aaee3d583efe775790acc7d59fd99d8060e7385b99d2d369a5cdca8"
+checksum = "77420e48225975c472eaea1b7c767af6caebea02d910043b0af7a1271d47ec9c"
 dependencies = [
  "arrayvec",
  "base64 0.22.1",
  "bitflags 2.10.0",
  "flatbuffers",
  "idna",
- "itertools 0.13.0",
+ "itertools",
  "memchr",
- "once_cell",
  "percent-encoding",
  "precomputed-hash",
  "regex",
- "rustc-hash 1.999.999",
+ "rustc-hash 2.1.1",
  "seahash",
  "serde",
  "serde_json",
@@ -1136,6 +1135,7 @@ dependencies = [
  "cstr",
  "nserror",
  "nsstring",
+ "serde_json",
  "thin-vec",
  "xpcom",
 ]
