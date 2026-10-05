@@ -1,0 +1,41 @@
+name: Sandfox Gecko Native Compile
+
+on:
+  push:
+    branches:
+      - "sandfox/dark-pages-v1-complete-final"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Check runner resources
+        run: |
+          df -h
+          nproc
+          free -h
+
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          submodules: false
+
+      - name: Bootstrap Gecko build environment
+        run: |
+          ./mach --no-interactive bootstrap --application-choice="Firefox for Desktop"
+
+      - name: Compile affected native targets
+        run: |
+          ./mach build gfx/2d layout/generic layout/painting
+
+      - name: Report build result
+        if: always()
+        run: |
+          df -h
