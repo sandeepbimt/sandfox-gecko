@@ -1,9 +1,8 @@
 name: Sandfox Gecko Native Compile
 
 on:
-  push:
-    branches:
-      - "sandfox/dark-pages-v1-complete-final"
+  pull_request:
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
