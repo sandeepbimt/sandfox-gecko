@@ -11107,6 +11107,13 @@
   value: false
   mirror: always
 
+# Built-in SANDFOX Dark Pages theme: 0 Dark, 1 Deep, 2 AMOLED/OLED,
+# 3 Grey, 4 Blue, 5 Warm.
+- name: layout.css.sandfox-dark-pages.theme
+  type: RelaxedAtomicUint32
+  value: 0
+  mirror: always
+
 # Dictates whether or not the prefers-reduced-transparency media query is enabled.
 - name: layout.css.prefers-reduced-transparency.enabled
   type: RelaxedAtomicBool
