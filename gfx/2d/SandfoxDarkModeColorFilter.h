@@ -27,7 +27,7 @@ class SandfoxDarkModeColorFilter final {
     // Explicit native dark support wins. This is the primary double-darkening
     // guard. Light-only and unspecified documents use Smart Dark.
     if (auto scheme = LookAndFeel::ExplicitColorSchemeForFrame(&aFrame)) {
-      if (*scheme == ColorScheme::Dark) {
+      if (*scheme == LookAndFeel::ColorScheme::Dark) {
         return false;
       }
     }
